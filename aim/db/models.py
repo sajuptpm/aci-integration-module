@@ -443,6 +443,7 @@ class L3Outside(model_base.Base, model_base.HasAimId,
 
     vrf_name = model_base.name_column()
     l3_domain_dn = sa.Column(sa.String(1024))
+    aci_children = sa.Column(sa.LargeBinary, nullable=True)
 
 
 class ExternalNetworkContract(model_base.Base):

@@ -50,6 +50,7 @@ def upgrade():
         sa.Column('vrf_name', sa.String(64)),
         sa.Column('l3_domain_dn', sa.String(1024)),
         sa.Column('monitored', sa.Boolean, nullable=False, default=False),
+        sa.Column('aci_children', sa.LargeBinary, nullable=False),
         sa.PrimaryKeyConstraint('aim_id'),
         sa.UniqueConstraint('tenant_name', 'name',
                             name='uniq_aim_l3outsides_identity'),

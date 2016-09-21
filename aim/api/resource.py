@@ -463,7 +463,15 @@ class L3Outside(AciResourceBase):
 
     identity_attributes = ['tenant_name', 'name']
     other_attributes = ['display_name', 'vrf_name',
-                        'l3_domain_dn', 'monitored']
+                        'l3_domain_dn', 'monitored',
+                        # aci_children is a hook for pushing any ACI object
+                        # through AIM, as long as that object is a legitimate
+                        # child of the AIM resource. Each child must have
+                        # a DN field, and no children itself. Empty list means
+                        # no children, which will be enforced by AID. When
+                        # the value is None, the main object behaves just like
+                        # any other AIM resource.
+                        'aci_children']
 
     _aci_mo_name = 'l3extOut'
     _tree_parent = Tenant
@@ -471,7 +479,7 @@ class L3Outside(AciResourceBase):
     def __init__(self, **kwargs):
         super(L3Outside, self).__init__(
             {'vrf_name': '', 'l3_domain_dn': '',
-             'monitored': False}, **kwargs)
+             'monitored': False, 'aci_children': None}, **kwargs)
 
 
 class ExternalNetwork(AciResourceBase):

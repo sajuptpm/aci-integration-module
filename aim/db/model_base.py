@@ -13,6 +13,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import json
+
 import sqlalchemy as sa
 from sqlalchemy.ext import declarative
 
@@ -80,6 +82,9 @@ class AttributeMixin(object):
         mapping of resource attributes to model properties.
         """
         for k, v in resource_attr.iteritems():
+            if k == 'aci_children' and v is not None:
+                # Convert in JSON string
+                v = json.dumps(v)
             if k not in getattr(self, '_exclude_from', []):
                 self.set_attr(session, k, v, **resource_attr)
 
@@ -89,10 +94,18 @@ class AttributeMixin(object):
         Child classes should override this method to specify a custom
         mapping of model properties to resource attributes.
         """
-        return {k: self.get_attr(session, k) for k in dir(self)
-                if (not k.startswith('_') and
+        res = {}
+        for k in dir(self):
+            if (not k.startswith('_') and
                     k not in getattr(self, '_exclude_to', []) and
-                    not callable(getattr(self, k)))}
+                    not callable(getattr(self, k))):
+                val = self.get_attr(session, k)
+                if k == 'aci_children' and val is not None:
+                    # Load from JSON string
+                    res[k] = json.loads(val)
+                else:
+                    res[k] = self.get_attr(session, k)
+        return res
 
     def set_attr(self, session, k, v, **kwargs):
         """Utility for setting DB attributes

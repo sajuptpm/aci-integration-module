@@ -74,7 +74,7 @@ def default_attribute_converter(object_dict, attribute,
 
 def default_to_resource(converted, helper, to_aim=True):
     klass = helper['resource']
-    default_skip = ['displayName', 'preExisting', 'monitored']
+    default_skip = ['displayName', 'preExisting', 'monitored', 'aciChildren']
     if to_aim:
         # APIC to AIM
         return klass(

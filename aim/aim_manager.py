@@ -13,9 +13,12 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+import copy
+
 from oslo_log import log as logging
 from sqlalchemy import event as sa_event
 
+from aim.agent.aid.universes.aci import converter
 from aim.api import resource as api_res
 from aim.api import status as api_status
 from aim.db import agent_model
@@ -87,6 +90,8 @@ class AimManager(object):
         integrity constraint violation is raised.
         """
         self._validate_resource_class(resource)
+        self._validate_aci_children(resource, getattr(resource, 'aci_children',
+                                                      None))
         with context.db_session.begin(subtransactions=True):
             db_obj = None
             if overwrite:
@@ -114,6 +119,8 @@ class AimManager(object):
         made to the database.
         """
         self._validate_resource_class(resource)
+        self._validate_aci_children(resource, getattr(resource, 'aci_children',
+                                                      None))
         if not update_attr_val:
             return self.get(context, resource)
         with context.db_session.begin(subtransactions=True):
@@ -345,3 +352,43 @@ class AimManager(object):
                      res_type)
             return None, None
         return res_type, res_id
+
+    def _validate_aci_children(self, resource, children):
+        if children is None:
+            # None is valid and means no enforcement
+            return
+        res_id = {x: getattr(resource, x) for x in
+                  resource.identity_attributes}
+        if not isinstance(children, list):
+            # children have to be a list
+            raise exc.InvalidAciChildrenType(
+                klass=type(resource), id=res_id, ac_type=type(children))
+        # All objects contained must be children of the main resource in the
+        # ACI world
+        # REVISIT(ivar): not ideal to call the converter here, maybe this
+        # validation could be part of a hook.
+        resource = copy.deepcopy(resource)
+        resource.monitored = False
+        resource.pre_existing = False
+        main_dns = [x.values()[0]['attributes']['dn'] + '/' for x in
+                    converter.AimToAciModelConverter().convert(
+                        [resource])]
+        main_dn = min(main_dns, key=lambda x: len(x))
+        main_dn_len = len(main_dn)
+        for res in children:
+            try:
+                res_type = res.keys()[0]
+                res_dn = res.values()[0]['attributes']['dn']
+            except (IndexError, AttributeError, KeyError):
+                raise exc.InvalidAciChildFormat(
+                    klass=type(resource), id=res_id, resource=res)
+            if res_type in converter.resource_map:
+                # We manager this object
+                raise exc.InvalidAciChildType(klass=type(resource), id=res_id,
+                                              ac_type=res_type)
+            if main_dn_len >= len(res_dn) or not res_dn.startswith(main_dn):
+                raise exc.InvalidAciChildDN(klass=type(resource), id=res_id,
+                                            res_dn=res_dn, main_dn=main_dn)
+            if 'children' in res:
+                raise exc.InvalidAciChildFormat(
+                    klass=type(resource), id=res_id, resource=res)

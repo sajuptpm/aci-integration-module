@@ -657,13 +657,29 @@ class TestPhysicalDomain(TestResourceOpsBase, base.TestAimDBBase):
 
 class TestL3Outside(TestAciResourceOpsBase, base.TestAimDBBase):
     resource_class = resource.L3Outside
+    aci_children = [
+        {"l3extLNodeP": {
+            "attributes": {"configIssues": "", "descr": "", "name": "test",
+                           "ownerKey": "", "ownerTag": "",
+                           "tag": "yellow-green",
+                           "targetDscp": "unspecified",
+                           "dn": "uni/tn-tenant1/out-l3out1/lnodep-test"}}},
+        {"l3extRsNodeL3OutAtt": {
+            "attributes": {"rtrId": "1.1.1.4", "rtrIdLoopBack": "yes",
+                           "tDn": "topology/pod-1/node-101",
+                           "dn": "uni/tn-tenant1/out-l3out1/rsNodeL3OutAtt-"
+                                 "[topology/pod-1/node-101]"}}}]
+
+    update_aci_children = aci_children[:-1]
     test_identity_attributes = {'name': 'l3out1'}
     test_required_attributes = {'tenant_name': 'tenant1',
                                 'name': 'l3out1',
                                 'vrf_name': 'ctx1',
-                                'l3_domain_dn': 'uni/foo'}
+                                'l3_domain_dn': 'uni/foo',
+                                'aci_children': aci_children}
     test_search_attributes = {'vrf_name': 'ctx1'}
-    test_update_attributes = {'l3_domain_dn': 'uni/bar'}
+    test_update_attributes = {'l3_domain_dn': 'uni/bar',
+                              'aci_children': update_aci_children}
     test_dn = 'uni/tn-tenant1/out-l3out1'
 
 

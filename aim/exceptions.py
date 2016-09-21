@@ -75,3 +75,31 @@ class OneHostPerCallbackItemSubscriptionAllowed(AimException):
 
 class InvalidMonitoredStateUpdate(AimException):
     message = "Monitored state of object %(object)s cannot be updated"
+
+
+class InvalidAciChildrenType(AimException):
+    message = ("Attribute aci_children for object of class %(klass)s with id"
+               "%(id)s must be a list or None. Got %(ac_type)s instead")
+
+
+class InvalidAciChildType(AimException):
+    message = ("ACI object contained in aci_children for object of "
+               "class %(klass)s with id %(id)s must be an object unmanaged by "
+               "AIM. Got %(ac_type)s instead")
+
+
+class InvalidAciChildFormat(AimException):
+    message = ("ACI object contained in aci_children for object of "
+               "class %(klass)s with id %(id)s must be a dictionary with a "
+               "single key containing the ACI MO type. Its value, must be a "
+               "dictionary with 'attributes' as key, and another dictionary "
+               "as value which contains at least the 'dn' key. ES: "
+               "{'fvBD': {'attributes': {'dn': 'uni/tn-common/BD-default'}}}. "
+               "Key 'children' is forbidden at the same level as "
+               "'attributes'. Got %(resource)s instead")
+
+
+class InvalidAciChildDN(AimException):
+    message = ("ACI object contained in aci_children for object of "
+               "class %(klass)s with id %(id)s DN %(res_dn)s is not a child "
+               "DN of %(main_dn)s")

@@ -75,6 +75,9 @@ class TestAgent(base.TestAimDBBase, test_aci_tenant.TestAciClientMixin):
             'aim.agent.aid.universes.aci.tenant.AciTenantManager.health_state',
             return_value=True)
         self.thread_health.start()
+        # Setup infra tenant
+        self.aim_manager._hashtree_db_listener.on_commit(
+            self.ctx.db_session, [resource.Infra()], [], [])
 
         self.events_thread = mock.patch(
             'aim.agent.aid.event_handler.EventHandler._spawn_listener')
@@ -157,11 +160,11 @@ class TestAgent(base.TestAimDBBase, test_aci_tenant.TestAciClientMixin):
         self.assertTrue(current_tstamp < agent.agent.heartbeat_timestamp)
 
     def test_calculate_tenants(self):
-        # One agent, zero tenants
+        # One agent, zero tenants. Only infra present
         agent = self._create_agent()
         result = agent._calculate_tenants(agent.context)
-        self.assertEqual([], result)
-        self.assertEqual([], agent.agent.hash_trees)
+        self.assertEqual(['infra'], result)
+        self.assertEqual(['infra'], agent.agent.hash_trees)
 
         # Same agent, one tenant
         data = tree.StructuredHashTree().include(
@@ -169,8 +172,8 @@ class TestAgent(base.TestAimDBBase, test_aci_tenant.TestAciClientMixin):
              {'key': ('keyA', 'keyC', 'keyD')}])
         self.tree_manager.update_bulk(self.ctx, [data])
         result = agent._calculate_tenants(agent.context)
-        self.assertEqual(['keyA'], result)
-        self.assertEqual(['keyA'], agent.agent.hash_trees)
+        self.assertEqual(['infra', 'keyA'], result)
+        self.assertEqual(['infra', 'keyA'], agent.agent.hash_trees)
 
         # Same agent, N Tenants
         data2 = tree.StructuredHashTree().include(
@@ -182,8 +185,9 @@ class TestAgent(base.TestAimDBBase, test_aci_tenant.TestAciClientMixin):
         self.tree_manager.update_bulk(self.ctx, [data2, data3])
         result = agent._calculate_tenants(agent.context)
         # All tenants are served by this agent since he's the only one
-        self.assertEqual(set(['keyA', 'keyA1', 'keyA2']), set(result))
-        self.assertEqual(set(['keyA', 'keyA1', 'keyA2']),
+        # Infra tenant is included
+        self.assertEqual(set(['infra', 'keyA', 'keyA1', 'keyA2']), set(result))
+        self.assertEqual(set(['infra', 'keyA', 'keyA1', 'keyA2']),
                          set(agent.agent.hash_trees))
 
         # Multiple Agents
@@ -194,7 +198,7 @@ class TestAgent(base.TestAimDBBase, test_aci_tenant.TestAciClientMixin):
         result2 = agent2._calculate_tenants(agent2.context)
         result3 = agent3._calculate_tenants(agent3.context)
         # All the tenants must be served
-        self.assertEqual(set(['keyA', 'keyA1', 'keyA2']),
+        self.assertEqual(set(['infra', 'keyA', 'keyA1', 'keyA2']),
                          set(result + result2))
         self.assertNotEqual([], result)
         self.assertNotEqual([], result2)
@@ -226,7 +230,7 @@ class TestAgent(base.TestAimDBBase, test_aci_tenant.TestAciClientMixin):
         self.aim_manager.create(agent.context, agent.agent, overwrite=True)
         result = agent._calculate_tenants(agent.context)
         result2 = agent2._calculate_tenants(agent2.context)
-        self.assertEqual(set(['keyA', 'keyA1', 'keyA2']),
+        self.assertEqual(set(['infra', 'keyA', 'keyA1', 'keyA2']),
                          set(result2))
         # Agent one has no tenant assigned
         self.assertEqual([], result)
@@ -236,7 +240,7 @@ class TestAgent(base.TestAimDBBase, test_aci_tenant.TestAciClientMixin):
         self.aim_manager.create(agent.context, agent.agent, overwrite=True)
         result = agent._calculate_tenants(agent.context)
         result2 = agent2._calculate_tenants(agent2.context)
-        self.assertEqual(set(['keyA', 'keyA1', 'keyA2']),
+        self.assertEqual(set(['infra', 'keyA', 'keyA1', 'keyA2']),
                          set(result + result2))
         # neither agent has empty configuration
         self.assertNotEqual([], result)
@@ -247,7 +251,7 @@ class TestAgent(base.TestAimDBBase, test_aci_tenant.TestAciClientMixin):
         self.aim_manager.create(agent2.context, agent2.agent, overwrite=True)
         result = agent._calculate_tenants(agent.context)
         result2 = agent2._calculate_tenants(agent2.context)
-        self.assertEqual(set(['keyA', 'keyA1', 'keyA2']),
+        self.assertEqual(set(['infra', 'keyA', 'keyA1', 'keyA2']),
                          set(result2))
         # Agent one has no tenant assigned
         self.assertEqual([], result)
@@ -257,7 +261,7 @@ class TestAgent(base.TestAimDBBase, test_aci_tenant.TestAciClientMixin):
         self.aim_manager.create(agent.context, agent.agent, overwrite=True)
         result = agent._calculate_tenants(agent.context)
         result2 = agent2._calculate_tenants(agent2.context)
-        self.assertEqual(set(['keyA', 'keyA1', 'keyA2']),
+        self.assertEqual(set(['infra', 'keyA', 'keyA1', 'keyA2']),
                          set(result + result2))
         # neither agent has empty configuration
         self.assertNotEqual([], result)
@@ -453,6 +457,10 @@ class TestAgent(base.TestAimDBBase, test_aci_tenant.TestAciClientMixin):
         self.aim_manager.create(self.ctx, tn1)
         # Run loop for serving tenant
         agent._daemon_loop()
+        infra = self._get_example_aci_infra()
+        self._set_events(
+            [infra], manager=desired_monitor.serving_tenants['infra'],
+            tag=False)
         self._set_events(
             [aci_tn], manager=desired_monitor.serving_tenants[tenant_name],
             tag=False)
@@ -627,6 +635,11 @@ class TestAgent(base.TestAimDBBase, test_aci_tenant.TestAciClientMixin):
         self.aim_manager.create(self.ctx, tn1)
         # Run loop for serving tenant
         agent._daemon_loop()
+        # Set infra on ACI
+        infra = self._get_example_aci_infra()
+        self._set_events(
+            [infra], manager=desired_monitor.serving_tenants['infra'],
+            tag=False)
         self._observe_aci_events(current_config)
         # Create a BD manually on this tenant
         aci_bd = self._get_example_aci_bd(
@@ -695,6 +708,11 @@ class TestAgent(base.TestAimDBBase, test_aci_tenant.TestAciClientMixin):
         self.aim_manager.create(self.ctx, tn1)
         # Run loop for serving tenant
         agent._daemon_loop()
+        # Set infra on ACI
+        infra = self._get_example_aci_infra()
+        self._set_events(
+            [infra], manager=desired_monitor.serving_tenants['infra'],
+            tag=False)
         self._observe_aci_events(current_config)
         # Create a BD manually on this tenant
         aci_l3o = self._get_example_aci_l3_out(

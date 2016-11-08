@@ -68,7 +68,8 @@ class AimManager(object):
                      api_res.PhysicalDomain: models.PhysicalDomain,
                      api_res.L3Outside: models.L3Outside,
                      api_res.ExternalNetwork: models.ExternalNetwork,
-                     api_res.ExternalSubnet: models.ExternalSubnet, }
+                     api_res.ExternalSubnet: models.ExternalSubnet,
+                     api_res.InfraNodeProfile: models.InfraNodeProfile, }
 
     def __init__(self):
         # TODO(amitbose): initialize anything we need, for example DB stuff
@@ -87,15 +88,13 @@ class AimManager(object):
         integrity constraint violation is raised.
         """
         self._validate_resource_class(resource)
+        self._validate_resource_create(resource)
         with context.db_session.begin(subtransactions=True):
             db_obj = None
             if overwrite:
                 db_obj = self._query_db_obj(context.db_session, resource)
                 if db_obj:
-                    if (getattr(db_obj, 'monitored', None) !=
-                            getattr(resource, 'monitored', None)):
-                        raise exc.InvalidMonitoredStateUpdate(
-                            object=resource)
+                    self._validate_resource_overwrite(resource, db_obj)
                     attr_val = self._extract_attributes(resource, "other")
                     db_obj.from_attr(context.db_session, attr_val)
             db_obj = db_obj or self._make_db_obj(context.db_session, resource)
@@ -119,11 +118,8 @@ class AimManager(object):
         with context.db_session.begin(subtransactions=True):
             db_obj = self._query_db_obj(context.db_session, resource)
             if db_obj:
-                if 'monitored' in update_attr_val:
-                    # TODO(ivar) Accept monitored state change.
-                    # To implement this, we need to realize what changed
-                    # in the before_flush hooks.
-                    raise exc.InvalidMonitoredStateUpdate(object=resource)
+                self._validate_resource_update(resource, db_obj,
+                                               **update_attr_val)
                 attr_val = {k: v for k, v in update_attr_val.iteritems()
                             if k in resource.other_attributes}
                 db_obj.from_attr(context.db_session, attr_val)
@@ -373,3 +369,30 @@ class AimManager(object):
                      res_type)
             return None, None
         return res_type, res_id
+
+    def _validate_resource_create(self, resource):
+        valid, reason = resource.valid_for_create()
+        if not valid:
+            raise exc.InvalidResourceOperation(operation='create',
+                                               type=type(resource),
+                                               reason=reason)
+
+    def _validate_resource_update(self, resource, db_obj, **update_attr_val):
+        valid, reason = resource.valid_for_update(db_obj, **update_attr_val)
+        if not valid:
+            raise exc.InvalidResourceOperation(operation='update',
+                                               type=type(resource),
+                                               reason=reason)
+
+    def _validate_resource_overwrite(self, resource, db_obj):
+        update_attr_val = {}
+        for k in resource.other_attributes:
+            try:
+                update_attr_val[k] = getattr(resource, k)
+            except AttributeError:
+                pass
+        valid, reason = resource.valid_for_update(db_obj, **update_attr_val)
+        if not valid:
+            raise exc.InvalidResourceOperation(operation='overwrite',
+                                               type=type(resource),
+                                               reason=reason)

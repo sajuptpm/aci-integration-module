@@ -365,12 +365,12 @@ class TestResourceOpsBase(object):
 
             # Cannot create overwrite if monitored is changed
             r1.monitored = False
-            self.assertRaises(exc.InvalidMonitoredStateUpdate,
+            self.assertRaises(exc.InvalidResourceOperation,
                               self.mgr.create, self.ctx, r1, overwrite=True)
 
             # Updating the monitored attribute fails
             res.monitored = False
-            self.assertRaises(exc.InvalidMonitoredStateUpdate,
+            self.assertRaises(exc.InvalidResourceOperation,
                               self.mgr.update, self.ctx, res,
                               monitored=False)
 
@@ -719,3 +719,12 @@ class TestExternalSubnet(TestAciResourceOpsBase, base.TestAimDBBase):
     test_update_attributes = {'display_name': 'home'}
     test_dn = ('uni/tn-tenant1/out-l3out1/instP-net1/'
                'extsubnet-[200.200.100.0/24]')
+
+
+class TestInfraNodeProfile(TestAciResourceOpsBase, base.TestAimDBBase):
+    resource_class = resource.InfraNodeProfile
+    test_identity_attributes = {'name': 'test1'}
+    test_required_attributes = {'name': 'test1'}
+    test_search_attributes = {'name': 'test1'}
+    test_update_attributes = {}
+    test_dn = 'uni/infra/nprof-test1'

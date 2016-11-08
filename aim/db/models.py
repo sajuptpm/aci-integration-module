@@ -503,3 +503,11 @@ class ExternalSubnet(model_base.Base, model_base.HasAimId,
     l3out_name = model_base.name_column(nullable=False)
     external_network_name = model_base.name_column(nullable=False)
     cidr = sa.Column(sa.String(64), nullable=False)
+
+
+class InfraNodeProfile(model_base.Base, model_base.HasAimId,
+                       model_base.AttributeMixin,
+                       model_base.IsMonitored, model_base.HasName):
+    """DB model for Tenant."""
+
+    __tablename__ = 'aim_node_profiles'

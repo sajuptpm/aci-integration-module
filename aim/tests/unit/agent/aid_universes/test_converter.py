@@ -44,15 +44,16 @@ class TestAciToAimConverterBase(object):
                 'Expected\n%s\nnot in\n%s' % (self._dump(item),
                                               self._dump(result)))
 
-        result = self.converter.convert(example1 + example2)
-        self.assertEqual(len(expected1) + len(expected2), len(result))
-        for item in expected1:
-            self.assertTrue(item in result)
-        for item in expected2:
-            self.assertTrue(
-                item in result,
-                'Expected\n%s\nnot in\n%s' % (self._dump(item),
-                                              self._dump(result)))
+        if example2:
+            result = self.converter.convert(example1 + example2)
+            self.assertEqual(len(expected1) + len(expected2), len(result))
+            for item in expected1:
+                self.assertTrue(item in result)
+            for item in expected2:
+                self.assertTrue(
+                    item in result,
+                    'Expected\n%s\nnot in\n%s' % (self._dump(item),
+                                                  self._dump(result)))
 
     def _test_non_existing_resource(self, example, expected):
         result = self.converter.convert(example + [{'fvCtxNonEx': {}}])
@@ -102,13 +103,11 @@ class TestAciToAimConverterBase(object):
         self._test_reverse_map(self.resource_type, self.reverse_map_output)
 
     def test_convert(self):
-        self.assertEqual(2, len(self.sample_input))
-        self.assertEqual(2, len(self.sample_output))
-
-        self._test_convert(self._to_list(self.sample_input[0]),
-                           [self.sample_output[0]],
-                           self._to_list(self.sample_input[1]),
-                           [self.sample_output[1]])
+        ln = len(self.sample_input)
+        self._test_convert(
+            self._to_list(self.sample_input[0]), [self.sample_output[0]],
+            self._to_list(self.sample_input[1]) if ln > 1 else None,
+            [self.sample_output[1]] if ln > 1 else None)
 
     def test_non_existing_resource(self):
         self._test_non_existing_resource(self._to_list(self.sample_input[0]),
@@ -679,6 +678,30 @@ class TestAciToAimConverterExternalSubnet(TestAciToAimConverterBase,
                                 cidr='30.0.0.0/16')]
 
 
+class TestAciToAimConverterInfra(TestAciToAimConverterBase,
+                                 base.TestAimDBBase):
+    resource_type = resource.Infra
+    reverse_map_output = [{'exceptions': {},
+                           'resource': 'infraInfra'}]
+    sample_input = [base.TestAimDBBase._get_example_aci_infra()]
+    sample_output = [resource.Infra()]
+
+
+class TestAciToAimConverterInfraNodeP(TestAciToAimConverterBase,
+                                      base.TestAimDBBase):
+    resource_type = resource.InfraNodeProfile
+    reverse_map_output = [
+        {'exceptions': {}, 'resource': 'infraNodeP',
+         'identity_converter': converter.infra_child_identity_converter}]
+    sample_input = [
+        base.TestAimDBBase._get_example_aci_nodep(
+            dn='uni/infra/nprof-test1', name='test1'),
+        base.TestAimDBBase._get_example_aci_nodep(
+            dn='uni/infra/nprof-test2', name='test2')]
+    sample_output = [resource.InfraNodeProfile(name='test1'),
+                     resource.InfraNodeProfile(name='test2')]
+
+
 class TestAimToAciConverterBase(object):
     sample_input = []
     sample_output = []
@@ -702,14 +725,18 @@ class TestAimToAciConverterBase(object):
             self.assertTrue(item in result,
                             'Expected %s not in result %s' % (item, result))
         # Convert another BD
-        result = self.converter.convert([example1, example2])
-        self.assertEqual(len(expected1) + len(expected2), len(result))
-        for item in expected1:
-            self.assertTrue(item in result,
-                            'Expected %s not in result %s' % (item, result))
-        for item in expected2:
-            self.assertTrue(item in result,
-                            'Expected %s not in result %s' % (item, result))
+        if example2:
+            result = self.converter.convert([example1, example2])
+            self.assertEqual(len(expected1) + len(expected2),
+                             len(result))
+            for item in expected1:
+                self.assertTrue(item in result,
+                                'Expected %s not in result %s' % (item,
+                                                                  result))
+            for item in expected2:
+                self.assertTrue(item in result,
+                                'Expected %s not in result %s' % (item,
+                                                                  result))
 
     def _test_consistent_conversion(self, example_resource):
         to_aim_converter = converter.AciToAimModelConverter()
@@ -749,8 +776,10 @@ class TestAimToAciConverterBase(object):
                                      self.missing_ref_output)
 
     def test_convert(self):
+        ln = len(self.sample_input)
         self._test_convert(self.sample_input[0], self.sample_output[0],
-                           self.sample_input[1], self.sample_output[1])
+                           self.sample_input[1] if ln > 1 else None,
+                           self.sample_output[1] if ln > 1 else None)
 
 
 class TestAimToAciConverterBD(TestAimToAciConverterBase, base.TestAimDBBase):
@@ -1183,3 +1212,17 @@ class TestAimToAciConverterExternalSubnet(TestAimToAciConverterBase,
                   dn='uni/tn-t1/out-l1/instP-inet1/extsubnet-[4.20.0.0/16]')],
         [_aci_obj('l3extSubnet',
                   dn='uni/tn-t1/out-l1/instP-inet2/extsubnet-[2.11.0.0/16]')]]
+
+
+class TestAimToAciConverterInfra(TestAimToAciConverterBase,
+                                 base.TestAimDBBase):
+    sample_input = [base.TestAimDBBase._get_example_aim_infra()]
+    sample_output = [[_aci_obj('infraInfra', dn='uni/infra')]]
+
+
+class TestAimToAciConverterInfraNodeP(TestAimToAciConverterBase,
+                                      base.TestAimDBBase):
+    sample_input = [base.TestAimDBBase._get_example_aim_nodep(name='test1'),
+                    base.TestAimDBBase._get_example_aim_nodep(name='test2')]
+    sample_output = [[_aci_obj('infraNodeP', dn='uni/infra/nprof-test1')],
+                     [_aci_obj('infraNodeP', dn='uni/infra/nprof-test2')]]

@@ -189,3 +189,20 @@ class TestHashTreeDbListener(base.TestAimDBBase):
             cast.reset_mock()
             self.tt_mgr.delete_by_tenant_rn(self.ctx, 'test_tree_hooks_2')
             cast.assert_called_once_with(mock.ANY, 'serve', None)
+
+    def test_infra_ops(self):
+        nodep = self._get_example_aim_nodep(name='np1')
+        tree_objects = [
+            {'key': ('infraInfra|infra', 'infraNodeP|np1'), }]
+        tree_objects_update = copy.deepcopy(tree_objects)
+        self._test_resource_ops(
+            nodep, 'infra', tree_objects, tree_objects_update,
+            tree_type=tree_model.CONFIG_TREE)
+
+    def test_infra_setup(self):
+        infra = self._get_example_aim_infra()
+        tree_objects = [{'key': ('infraInfra|infra', ), }]
+        tree_objects_update = copy.deepcopy(tree_objects)
+        self._test_resource_ops(
+            infra, 'infra', tree_objects, tree_objects_update,
+            tree_type=tree_model.MONITORED_TREE)

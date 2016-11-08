@@ -329,3 +329,39 @@ class TestAimDBBase(BaseTestCase):
                 "name": "default"}}}
         example_l3o['l3extOut']['attributes'].update(kwargs)
         return example_l3o
+
+    @classmethod
+    def _get_example_aim_nodep(cls, **kwargs):
+        example = resource.InfraNodeProfile(name='test')
+        example.__dict__.update(kwargs)
+        return example
+
+    @classmethod
+    def _get_example_aci_nodep(cls, **kwargs):
+        example_nodep = {
+            "infraNodeP": {
+                "attributes": {
+                    "dn": "uni/infra/nprof-test",
+                }
+            }
+        }
+        example_nodep['infraNodeP']['attributes'].update(kwargs)
+        return example_nodep
+
+    @classmethod
+    def _get_example_aim_infra(cls, **kwargs):
+        example = resource.Infra()
+        example.__dict__.update(kwargs)
+        return example
+
+    @classmethod
+    def _get_example_aci_infra(cls, **kwargs):
+        example_nodep = {
+            "infraInfra": {
+                "attributes": {
+                    "dn": "uni/infra",
+                }
+            }
+        }
+        example_nodep['infraInfra']['attributes'].update(kwargs)
+        return example_nodep

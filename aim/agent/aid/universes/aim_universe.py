@@ -29,6 +29,7 @@ from aim import exceptions as aim_exc
 
 LOG = logging.getLogger(__name__)
 ACI_FAULT = 'faultInst'
+ROOT_RESOURCES = [aim_resource.Infra, aim_resource.Tenant]
 
 
 class AimDbUniverse(base.HashTreeStoredUniverse):
@@ -168,8 +169,7 @@ class AimDbUniverse(base.HashTreeStoredUniverse):
                     else:
                         LOG.debug("%s object in AIM %s" %
                                   (method, resource.__dict__))
-                        if isinstance(resource,
-                                      aim_resource.Tenant) and monitored:
+                        if (type(resource) in ROOT_RESOURCES) and monitored:
                             # Monitored Universe doesn't interact with Tenant
                             # Resources
                             continue

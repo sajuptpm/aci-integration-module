@@ -73,5 +73,6 @@ class OneHostPerCallbackItemSubscriptionAllowed(AimException):
                "another host already subscribed for such call: %(curr_hosts)s")
 
 
-class InvalidMonitoredStateUpdate(AimException):
-    message = "Monitored state of object %(object)s cannot be updated"
+class InvalidResourceOperation(AimException):
+    message = ("operation %(operation)s is nor valid for resource of type "
+               "%(type)s for the following reason: %(reason)s")

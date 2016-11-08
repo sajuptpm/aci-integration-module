@@ -424,3 +424,11 @@ class TestHashTreeDbListener(base.TestAimDBBase):
     #    op_tree = self.tt_mgr.get(self.ctx, tn_name,
     #                              tree=tree_manager.OPERATIONAL_TREE)
     #    self.assertEqual(empty_tree, op_tree)
+
+    def test_infra_setup(self):
+        infra = self._get_example_aim_infra()
+        tree_objects = [{'key': ('infraInfra|infra', ), }]
+        tree_objects_update = copy.deepcopy(tree_objects)
+        self._test_resource_ops(
+            infra, 'infra', tree_objects, tree_objects_update,
+            tree_type=tree_model.MONITORED_TREE)

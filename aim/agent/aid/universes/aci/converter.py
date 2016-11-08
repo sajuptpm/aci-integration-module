@@ -51,13 +51,33 @@ def default_identity_converter(object_dict, otype, helper,
     to the resource class 'identity_attributes'
     """
     if to_aim:
-        return apic_client.DNManager().aci_decompose(object_dict['dn'], otype)
+        return apic_client.DNManager().aci_decompose_split(
+            object_dict['dn'], otype)
     else:
         attr = [object_dict[x] for x in otype.identity_attributes]
         if extra_attributes:
             attr.extend(extra_attributes)
         mo_type = aci_mo_type or helper['resource']
         return [apic_client.ManagedObjectClass(mo_type).dn(*attr)]
+
+
+def infra_child_identity_converter(object_dict, otype, helper,
+                                   extra_attributes=None, aci_mo_type=None,
+                                   to_aim=True):
+    result = default_identity_converter(
+        object_dict, otype, helper,
+        extra_attributes=extra_attributes, aci_mo_type=aci_mo_type,
+        to_aim=to_aim)
+    if to_aim:
+        # remove 'infra' prefix
+        return result[1:]
+    else:
+        return result
+
+
+def set_identity_attributes(res_dict, destination_identity_attributes, id):
+    for index, attr in enumerate(destination_identity_attributes):
+        res_dict[attr] = id[index]
 
 
 def fault_identity_converter(object_dict, otype, helper,
@@ -199,8 +219,8 @@ def child_list(aim_attr, aci_attr, aci_mo=None):
                                                 to_aim=True)
             except apic_client.DNManager.InvalidNameFormat:
                 return []
-            for index, attr in enumerate(destination_identity_attributes):
-                res_dict[attr] = id[index]
+            set_identity_attributes(
+                res_dict, destination_identity_attributes, id)
             if object_dict.get(aci_attr):
                 res_dict[aim_attr] = [object_dict[aci_attr]]
             result.append(default_to_resource(res_dict, helper, to_aim=True))
@@ -229,8 +249,8 @@ def fv_rs_dom_att_converter(object_dict, otype, helper,
                                             to_aim=True)
         except apic_client.DNManager.InvalidNameFormat:
             return []
-        for index, attr in enumerate(destination_identity_attributes):
-            res_dict[attr] = id[index]
+        set_identity_attributes(
+            res_dict, destination_identity_attributes, id)
         # fvRsDomAtt can be either referring to a physDomP or a vmmDomP type
         try:
             dom_id = default_identity_converter(
@@ -547,7 +567,10 @@ resource_map = {
     'hostprotRemoteIp': [{
         'resource': resource.SecurityGroupRule,
         'converter': hostprotRemoteIp_converter,
-    }]
+    }],
+    'infraInfra': [{
+        'resource': resource.Infra,
+    }],
 }
 
 
@@ -639,8 +662,8 @@ class BaseConverter(object):
         identity = (helper.get('identity_converter') or
                     default_identity_converter)(object_dict, otype, helper,
                                                 to_aim=to_aim)
-        for index, part in enumerate(destination_identity_attributes):
-            res_dict[part] = identity[index]
+        set_identity_attributes(
+            res_dict, destination_identity_attributes, identity)
         for attribute in object_dict:
             if attribute in source_identity_attributes:
                 continue

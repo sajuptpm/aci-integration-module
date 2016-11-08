@@ -36,12 +36,15 @@ from aim import exceptions
 
 LOG = logging.getLogger(__name__)
 TENANT_KEY = 'fvTenant'
+INFRA_KEY = 'infraInfra'
+ROOT_KEYS = [TENANT_KEY, INFRA_KEY]
 FAULT_KEY = 'faultInst'
 TAG_KEY = 'tagInst'
 STATUS_FIELD = 'status'
 SEVERITY_FIELD = 'severity'
 CHILDREN_FIELD = 'children'
 CHILDREN_LIST = set(converter.resource_map.keys() + ['fvTenant', 'tagInst'])
+INFRA_CHILDREN_LIST = set(['infraInfra', 'tagInst'])
 OPERATIONAL_LIST = [FAULT_KEY]
 TENANT_FAILURE_MAX_WAIT = 60
 ACI_TYPES_NOT_CONVERT_IF_MONITOR = {}
@@ -64,8 +67,11 @@ class Tenant(acitoolkit.Tenant):
         self.filtered_children = kwargs.pop('filtered_children', [])
         super(Tenant, self).__init__(*args, **kwargs)
 
+    def _rn_fmt(self):
+        return 'tn-{}'
+
     def _get_instance_subscription_urls(self):
-        url = ('/api/mo/uni/tn-{}.json?query-target=subtree&'
+        url = ('/api/mo/uni/' + self._rn_fmt() + '.json?query-target=subtree&'
                'rsp-prop-include=config-only&rsp-subtree-include=faults&'
                'subscription=yes'.format(self.name))
         if self.filtered_children:
@@ -127,25 +133,24 @@ class Tenant(acitoolkit.Tenant):
         return self._instance_has_events(session)
 
 
+class Infra(Tenant):
+
+    def _rn_fmt(self):
+        return '{}'
+
+
 class AciTenantManager(gevent.Greenlet):
 
     def __init__(self, tenant_name, apic_config, apic_session, ws_context,
                  creation_succeeded=None, creation_failed=None,
                  aim_system_id=None, *args, **kwargs):
+        self.tenant_name = tenant_name
+        LOG.info("Init manager for %s" % self._qualified_name())
         super(AciTenantManager, self).__init__(*args, **kwargs)
-        LOG.info("Init manager for tenant %s" % tenant_name)
         self.apic_config = apic_config
         # Each tenant has its own sessions
         self.aci_session = apic_session
         self.dn_manager = apic_client.DNManager()
-        self.tenant_name = tenant_name
-        children_mos = set()
-        for mo in CHILDREN_LIST:
-            if mo in apic_client.ManagedObjectClass.supported_mos:
-                children_mos.add(apic_client.ManagedObjectClass(mo).klass_name)
-            else:
-                children_mos.add(mo)
-        self.tenant = Tenant(self.tenant_name, filtered_children=children_mos)
         self._state = structured_tree.StructuredHashTree()
         self._operational_state = structured_tree.StructuredHashTree()
         self._monitored_state = structured_tree.StructuredHashTree()
@@ -172,6 +177,19 @@ class AciTenantManager(gevent.Greenlet):
         self.recovery_retries = None
         self.max_retries = 5
         self.error_handler = error.APICAPIErrorHandler()
+        self.initialize_target()
+
+    def _qualified_name(self):
+        return 'Tenant %s' % self.tenant_name
+
+    def initialize_target(self):
+        children_mos = set()
+        for mo in CHILDREN_LIST:
+            if mo in apic_client.ManagedObjectClass.supported_mos:
+                children_mos.add(apic_client.ManagedObjectClass(mo).klass_name)
+            else:
+                children_mos.add(mo)
+        self.tenant = Tenant(self.tenant_name, filtered_children=children_mos)
 
     def is_dead(self):
         # Wrapping the greenlet property for easier testing
@@ -206,7 +224,7 @@ class AciTenantManager(gevent.Greenlet):
             root_key=self._monitored_state.root_key)
 
     def _run(self):
-        LOG.debug("Starting main loop for tenant %s" % self.tenant_name)
+        LOG.debug("Starting main loop for %s" % self._qualified_name())
         try:
             while True:
                 self._main_loop()
@@ -215,8 +233,7 @@ class AciTenantManager(gevent.Greenlet):
                 self._unsubscribe_tenant()
             except Exception as e:
                 LOG.error("An exception has occurred while exiting thread "
-                          "for tenant %s: %s" % (self.tenant_name,
-                                                 e.message))
+                          "for %s: %s" % (self._qualified_name(), e.message))
             finally:
                 # We need to make sure that this thread dies upon
                 # GreenletExit
@@ -225,7 +242,7 @@ class AciTenantManager(gevent.Greenlet):
     def _main_loop(self):
         try:
             # tenant subscription is redone upon exception
-            LOG.debug("Starting event loop for tenant %s" % self.tenant_name)
+            LOG.debug("Starting event loop for %s" % self._qualified_name())
             count = 3
             last_time = 0
             epsilon = 0.5
@@ -234,8 +251,8 @@ class AciTenantManager(gevent.Greenlet):
                 self._subscribe_tenant()
                 self._event_loop()
                 if count == 0:
-                    LOG.debug("Setting tenant %s to warm state" %
-                              self.tenant_name)
+                    LOG.debug("Setting %s to warm state" %
+                              self._qualified_name())
                     self._warm = True
                     count -= 1
                 elif count > 0:
@@ -243,8 +260,8 @@ class AciTenantManager(gevent.Greenlet):
                 curr_time = time.time() - start
                 if abs(curr_time - last_time) > epsilon:
                     # Only log significant differences
-                    LOG.debug("Event loop for tenant %s completed in %s "
-                              "seconds" % (self.tenant_name,
+                    LOG.debug("Event loop for %s completed in %s "
+                              "seconds" % (self._qualified_name(),
                                            time.time() - start))
                     last_time = curr_time
                 if not last_time:
@@ -254,8 +271,8 @@ class AciTenantManager(gevent.Greenlet):
         except gevent.GreenletExit:
             raise
         except Exception as e:
-            LOG.error("An exception has occurred in thread serving tenant "
-                      "%s, error: %s" % (self.tenant_name, e.message))
+            LOG.error("An exception has occurred in thread serving "
+                      "%s, error: %s" % (self._qualified_name(), e.message))
             LOG.debug(traceback.format_exc())
             self.health_state = False
             self._unsubscribe_tenant()
@@ -273,16 +290,17 @@ class AciTenantManager(gevent.Greenlet):
         # all the events we generate here are likely caught in this iteration.
         self._push_aim_resources()
         if self.tenant.instance_has_event(self.ws_context.session):
-            LOG.debug("Event for tenant %s in warm state %s" %
-                      (self.tenant_name, self._warm))
+            LOG.debug("Event for %s in warm state %s" %
+                      (self._qualified_name(), self._warm))
             # Continuously check for events
             events = self.tenant.instance_get_event_data(
                 self.ws_context.session)
             for event in events:
-                if (event.keys()[0] == TENANT_KEY and not
-                        event[TENANT_KEY]['attributes'].get(STATUS_FIELD)):
-                    LOG.info("Resetting Tree %s" % self.tenant_name)
-                    # This is a full resync, trees need to be reset
+                if (event.keys()[0] in ROOT_KEYS and not
+                        event[event.keys()[0]]['attributes'].get(
+                            STATUS_FIELD)):
+                    LOG.info("Resetting Tree for %s" % self._qualified_name())
+                    # This is a full resync, tree needs to be reset
                     self._state = structured_tree.StructuredHashTree()
                     self._operational_state = (
                         structured_tree.StructuredHashTree())
@@ -482,7 +500,7 @@ class AciTenantManager(gevent.Greenlet):
             if upd:
                 modified = True
                 LOG.debug("New %s tree for tenant %s: %s" %
-                          (readable, self.tenant_name, str(tree)))
+                          (readable, self._qualified_name(), str(tree)))
         if modified:
             event_handler.EventHandler.reconcile()
 
@@ -504,8 +522,8 @@ class AciTenantManager(gevent.Greenlet):
         start = time.time()
         result = self.retrieve_aci_objects(events, self.to_aim_converter,
                                            self.aci_session)
-        LOG.debug('Filling procedure took %s for tenant %s' %
-                  (time.time() - start, self.tenant.name))
+        LOG.debug('Filling procedure took %s for %s' %
+                  (time.time() - start, self._qualified_name()))
         return result
 
     @staticmethod
@@ -692,3 +710,25 @@ class AciTenantManager(gevent.Greenlet):
     @staticmethod
     def is_rs_object(type):
         return 'Rs' in type
+
+
+class AciInfraManager(AciTenantManager):
+
+    def __init__(self, apic_config, apic_session, ws_context,
+                 creation_succeeded=None, creation_failed=None,
+                 *args, **kwargs):
+        super(AciInfraManager, self).__init__(
+            'infra', apic_config, apic_session, ws_context, creation_succeeded,
+            creation_failed, *args, **kwargs)
+
+    def initialize_target(self):
+        children_mos = set()
+        for mo in INFRA_CHILDREN_LIST:
+            if mo in apic_client.ManagedObjectClass.supported_mos:
+                children_mos.add(apic_client.ManagedObjectClass(mo).klass_name)
+            else:
+                children_mos.add(mo)
+        self.tenant = Infra(self.tenant_name, filtered_children=children_mos)
+
+    def _qualified_name(self):
+        return 'ACI Infra'

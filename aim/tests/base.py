@@ -441,3 +441,21 @@ class TestAimDBBase(BaseTestCase):
         }
         example_rsprov['fvRsProv']['attributes'].update(kwargs)
         return example_rsprov
+
+    @classmethod
+    def _get_example_aim_infra(cls, **kwargs):
+        example = resource.Infra()
+        example.__dict__.update(kwargs)
+        return example
+
+    @classmethod
+    def _get_example_aci_infra(cls, **kwargs):
+        example_nodep = {
+            "infraInfra": {
+                "attributes": {
+                    "dn": "uni/infra",
+                }
+            }
+        }
+        example_nodep['infraInfra']['attributes'].update(kwargs)
+        return example_nodep

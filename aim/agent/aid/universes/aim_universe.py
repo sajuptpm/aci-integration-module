@@ -30,6 +30,7 @@ from aim import tree_manager
 
 LOG = logging.getLogger(__name__)
 ACI_FAULT = 'faultInst'
+ROOT_RESOURCES = [aim_resource.Infra, aim_resource.Tenant]
 
 
 class AimDbUniverse(base.HashTreeStoredUniverse):

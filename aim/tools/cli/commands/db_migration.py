@@ -59,9 +59,14 @@ def upgrade(ctx, version):
     # create common tenant
     aim_ctx = context.AimContext(store=api.get_store(expire_on_commit=True))
     aim_mgr = aim_manager.AimManager()
+    # create common tenant
     common_tenant = resource.Tenant(name='common', monitored=True)
     if not aim_mgr.get(aim_ctx, common_tenant):
         aim_mgr.create(aim_ctx, common_tenant)
+    # create infra tenant tree
+    infra = resource.Infra()
+    aim_mgr._hashtree_db_listener.on_commit(
+        aim_ctx.db_session, [infra], [], [])
 
 
 @db_migration.command(name='stamp')

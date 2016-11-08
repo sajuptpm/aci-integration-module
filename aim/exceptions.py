@@ -81,3 +81,8 @@ class InvalidMonitoredStateUpdate(AimException):
 class InvalidMonitoredObjectDelete(AimException):
     message = ("Monitored object %(object)s cannot be deleted while in "
                "pending state")
+
+
+class InvalidResourceOperation(AimException):
+    message = ("operation %(operation)s is nor valid for resource of type "
+               "%(type)s for the following reason: %(reason)s")

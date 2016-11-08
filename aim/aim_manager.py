@@ -106,6 +106,7 @@ class AimManager(object):
             if overwrite:
                 old_db_obj = self._query_db_obj(context.store, resource)
                 if old_db_obj:
+                    self._validate_resource_overwrite(resource, old_db_obj)
                     old_monitored = getattr(old_db_obj, 'monitored', None)
                     new_monitored = getattr(resource, 'monitored', None)
                     if fix_ownership and old_monitored != new_monitored:
@@ -148,6 +149,8 @@ class AimManager(object):
         with context.store.begin(subtransactions=True):
             db_obj = self._query_db_obj(context.store, resource)
             if db_obj:
+                self._validate_resource_update(resource, db_obj,
+                                               **update_attr_val)
                 old_monitored = getattr(db_obj, 'monitored', None)
                 new_monitored = update_attr_val.get('monitored')
                 if fix_ownership and old_monitored != new_monitored:
@@ -396,3 +399,30 @@ class AimManager(object):
             for child_res in self.find(context, child_klass,
                                        **identity):
                 yield child_res
+
+    def _validate_resource_create(self, resource):
+        valid, reason = resource.valid_for_create()
+        if not valid:
+            raise exc.InvalidResourceOperation(operation='create',
+                                               type=type(resource),
+                                               reason=reason)
+
+    def _validate_resource_update(self, resource, db_obj, **update_attr_val):
+        valid, reason = resource.valid_for_update(db_obj, **update_attr_val)
+        if not valid:
+            raise exc.InvalidResourceOperation(operation='update',
+                                               type=type(resource),
+                                               reason=reason)
+
+    def _validate_resource_overwrite(self, resource, db_obj):
+        update_attr_val = {}
+        for k in resource.other_attributes:
+            try:
+                update_attr_val[k] = getattr(resource, k)
+            except AttributeError:
+                pass
+        valid, reason = resource.valid_for_update(db_obj, **update_attr_val)
+        if not valid:
+            raise exc.InvalidResourceOperation(operation='overwrite',
+                                               type=type(resource),
+                                               reason=reason)

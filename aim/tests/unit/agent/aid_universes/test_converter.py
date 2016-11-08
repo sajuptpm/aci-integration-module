@@ -44,15 +44,16 @@ class TestAciToAimConverterBase(object):
                 'Expected\n%s\nnot in\n%s' % (self._dump(item),
                                               self._dump(result)))
 
-        result = self.converter.convert(example1 + example2)
-        self.assertEqual(len(expected1) + len(expected2), len(result))
-        for item in expected1:
-            self.assertTrue(item in result)
-        for item in expected2:
-            self.assertTrue(
-                item in result,
-                'Expected\n%s\nnot in\n%s' % (self._dump(item),
-                                              self._dump(result)))
+        if example2:
+            result = self.converter.convert(example1 + example2)
+            self.assertEqual(len(expected1) + len(expected2), len(result))
+            for item in expected1:
+                self.assertTrue(item in result)
+            for item in expected2:
+                self.assertTrue(
+                    item in result,
+                    'Expected\n%s\nnot in\n%s' % (self._dump(item),
+                                                  self._dump(result)))
 
     def _test_non_existing_resource(self, example, expected):
         result = self.converter.convert(example + [{'fvCtxNonEx': {}}])
@@ -102,13 +103,11 @@ class TestAciToAimConverterBase(object):
         self._test_reverse_map(self.resource_type, self.reverse_map_output)
 
     def test_convert(self):
-        self.assertEqual(2, len(self.sample_input))
-        self.assertEqual(2, len(self.sample_output))
-
-        self._test_convert(self._to_list(self.sample_input[0]),
-                           [self.sample_output[0]],
-                           self._to_list(self.sample_input[1]),
-                           [self.sample_output[1]])
+        ln = len(self.sample_input)
+        self._test_convert(
+            self._to_list(self.sample_input[0]), [self.sample_output[0]],
+            self._to_list(self.sample_input[1]) if ln > 1 else None,
+            [self.sample_output[1]] if ln > 1 else None)
 
     def test_non_existing_resource(self):
         self._test_non_existing_resource(self._to_list(self.sample_input[0]),
@@ -723,6 +722,15 @@ class TestAciToAimConverterExternalSubnet(TestAciToAimConverterBase,
                                 cidr='30.0.0.0/16', display_name='alias')]
 
 
+class TestAciToAimConverterInfra(TestAciToAimConverterBase,
+                                 base.TestAimDBBase):
+    resource_type = resource.Infra
+    reverse_map_output = [{'exceptions': {},
+                           'resource': 'infraInfra'}]
+    sample_input = [base.TestAimDBBase._get_example_aci_infra()]
+    sample_output = [resource.Infra()]
+
+
 class TestAimToAciConverterBase(object):
     sample_input = []
     sample_output = []
@@ -746,14 +754,18 @@ class TestAimToAciConverterBase(object):
             self.assertTrue(item in result,
                             'Expected %s not in result %s' % (item, result))
         # Convert another BD
-        result = self.converter.convert([example1, example2])
-        self.assertEqual(len(expected1) + len(expected2), len(result))
-        for item in expected1:
-            self.assertTrue(item in result,
-                            'Expected %s not in result %s' % (item, result))
-        for item in expected2:
-            self.assertTrue(item in result,
-                            'Expected %s not in result %s' % (item, result))
+        if example2:
+            result = self.converter.convert([example1, example2])
+            self.assertEqual(len(expected1) + len(expected2),
+                             len(result))
+            for item in expected1:
+                self.assertTrue(item in result,
+                                'Expected %s not in result %s' % (item,
+                                                                  result))
+            for item in expected2:
+                self.assertTrue(item in result,
+                                'Expected %s not in result %s' % (item,
+                                                                  result))
 
     def _test_consistent_conversion(self, example_resource):
         to_aim_converter = converter.AciToAimModelConverter()
@@ -793,8 +805,10 @@ class TestAimToAciConverterBase(object):
                                      self.missing_ref_output)
 
     def test_convert(self):
+        ln = len(self.sample_input)
         self._test_convert(self.sample_input[0], self.sample_output[0],
-                           self.sample_input[1], self.sample_output[1])
+                           self.sample_input[1] if ln > 1 else None,
+                           self.sample_output[1] if ln > 1 else None)
 
 
 class TestAimToAciConverterBD(TestAimToAciConverterBase, base.TestAimDBBase):
@@ -1358,3 +1372,9 @@ class TestAimToAciConverterSecurityGroupRule(TestAimToAciConverterBase,
              'hostprotRemoteIp',
              dn='uni/tn-t1/pol-sg2/subj-sgs1/rule-rule1/ip-[192.168.0.0/24]',
              addr='192.168.0.0/24')]]
+
+
+class TestAimToAciConverterInfra(TestAimToAciConverterBase,
+                                 base.TestAimDBBase):
+    sample_input = [base.TestAimDBBase._get_example_aim_infra()]
+    sample_output = [[_aci_obj('infraInfra', dn='uni/infra')]]

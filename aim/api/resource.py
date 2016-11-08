@@ -27,6 +27,8 @@ from apicapi import apic_client
 
 
 LOG = logging.getLogger(__name__)
+INFRA = 'infra'
+RESERVED_TENANT_NAMES = [INFRA]
 
 
 class ResourceBase(object):
@@ -71,6 +73,12 @@ class ResourceBase(object):
         return {x: self.__dict__[x] for x in self.attributes() +
                 ['pre_existing'] + ['_error'] if x in self.__dict__}
 
+    def valid_for_create(self):
+        return True, ''
+
+    def valid_for_update(self, db_obj, **update_attr_val):
+        return True, ''
+
     def __str__(self):
         return '%s(%s)' % (type(self).__name__, ','.join(self.identity))
 
@@ -108,10 +116,12 @@ class AciResourceBase(ResourceBase):
     def from_dn(cls, dn):
         DNMgr = apic_client.DNManager
         try:
-            rns = DNMgr().aci_decompose(dn, cls._aci_mo_name)
+            rns = DNMgr().aci_decompose_split(dn, cls._aci_mo_name)
             if len(rns) < len(cls.identity_attributes):
                 raise exc.InvalidDNForAciResource(dn=dn, cls=cls)
-            attr = {p[0]: p[1] for p in zip(cls.identity_attributes, rns)}
+            attr = {p[0]: p[1] for p in
+                    zip(cls.identity_attributes,
+                        rns[-len(cls.identity_attributes):])}
             return cls(**attr)
         except DNMgr.InvalidNameFormat:
             raise exc.InvalidDNForAciResource(dn=dn, cls=cls)
@@ -135,6 +145,11 @@ class Tenant(AciResourceBase):
 
     def __init__(self, **kwargs):
         super(Tenant, self).__init__({'monitored': False}, **kwargs)
+
+    def valid_for_create(self):
+        if self.name in RESERVED_TENANT_NAMES:
+            return False, '%s name is reserved' % self.name
+        return super(Tenant, self).valid_for_create()
 
 
 class BridgeDomain(AciResourceBase):
@@ -720,3 +735,17 @@ class Configuration(ResourceBase):
 
     def __init__(self, **kwargs):
         super(Configuration, self).__init__({}, **kwargs)
+
+
+class Infra(AciResourceBase):
+    """Resource representing Infra in ACI. """
+
+    identity_attributes = []
+    other_attributes = ['monitored']
+
+    _aci_mo_name = 'infraInfra'
+    _tree_parent = None
+
+    def __init__(self, **kwargs):
+        super(Infra, self).__init__(
+            {'monitored': True}, _set_default=kwargs.get('_set_default', True))

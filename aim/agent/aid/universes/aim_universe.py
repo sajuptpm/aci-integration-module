@@ -199,9 +199,10 @@ class AimDbUniverse(base.HashTreeStoredUniverse):
                                 # Declare victory for the created object
                                 self.creation_succeeded(resource)
                         else:
-                            if isinstance(resource,
-                                          aim_resource.Tenant) and monitored:
-                                # Monitored Universe doesn't delete Tenant
+                            if isinstance(
+                                    resource,
+                                    aim_resource.RootResource) and monitored:
+                                # Monitored Universe doesn't delete Root
                                 # Resources
                                 continue
                             if monitored:

@@ -731,6 +731,33 @@ class TestAciToAimConverterInfra(TestAciToAimConverterBase,
     sample_output = [resource.Infra()]
 
 
+class TestAciToAimConverterVMM(TestAciToAimConverterBase, base.TestAimDBBase):
+    resource_type = resource.VMMDomain
+    reverse_map_output = [
+        {'exceptions': {}, 'resource': 'vmmDomP'}]
+    sample_input = [
+        base.TestAimDBBase._get_example_aci_vmm(
+            dn='uni/vmmp-Openstack/dom-test1', name='test1'),
+        base.TestAimDBBase._get_example_aci_vmm(
+            dn='uni/vmmp-Openstack/dom-test2', name='test2')]
+    sample_output = [resource.VMMDomain(type='Openstack', name='test1'),
+                     resource.VMMDomain(type='Openstack', name='test2')]
+
+
+class TestAciToAimConverterPhysdom(TestAciToAimConverterBase,
+                                   base.TestAimDBBase):
+    resource_type = resource.PhysicalDomain
+    reverse_map_output = [
+        {'exceptions': {}, 'resource': 'physDomP'}]
+    sample_input = [
+        base.TestAimDBBase._get_example_aci_physdom(
+            dn='uni/phys-test1', name='test1'),
+        base.TestAimDBBase._get_example_aci_physdom(
+            dn='uni/phys-test2', name='test2')]
+    sample_output = [resource.PhysicalDomain(name='test1'),
+                     resource.PhysicalDomain(name='test2')]
+
+
 class TestAimToAciConverterBase(object):
     sample_input = []
     sample_output = []
@@ -1378,3 +1405,22 @@ class TestAimToAciConverterInfra(TestAimToAciConverterBase,
                                  base.TestAimDBBase):
     sample_input = [base.TestAimDBBase._get_example_aim_infra()]
     sample_output = [[_aci_obj('infraInfra', dn='uni/infra')]]
+
+
+class TestAimToAciConverterInfraVMM(TestAimToAciConverterBase,
+                                    base.TestAimDBBase):
+    sample_input = [base.TestAimDBBase._get_example_aim_vmm(name='test1'),
+                    base.TestAimDBBase._get_example_aim_vmm(type='VMWare',
+                                                            name='test2')]
+    sample_output = [[_aci_obj('vmmDomP',
+                               dn='uni/vmmp-Openstack/dom-test1')],
+                     [_aci_obj('vmmDomP',
+                               dn='uni/vmmp-VMWare/dom-test2')]]
+
+
+class TestAimToAciConverterInfraPhysdom(TestAimToAciConverterBase,
+                                        base.TestAimDBBase):
+    sample_input = [base.TestAimDBBase._get_example_aim_physdom(name='test1'),
+                    base.TestAimDBBase._get_example_aim_physdom(name='test2')]
+    sample_output = [[_aci_obj('physDomP', dn='uni/phys-test1')],
+                     [_aci_obj('physDomP', dn='uni/phys-test2')]]

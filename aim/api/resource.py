@@ -127,7 +127,11 @@ class AciResourceBase(ResourceBase):
             raise exc.InvalidDNForAciResource(dn=dn, cls=cls)
 
 
-class Tenant(AciResourceBase):
+class RootResource(AciResourceBase):
+    _tree_parent = None
+
+
+class Tenant(RootResource):
     """Resource representing a Tenant in ACI.
 
     Identity attribute is RN for ACI tenant.
@@ -141,7 +145,6 @@ class Tenant(AciResourceBase):
         ('monitored', t.bool))
 
     _aci_mo_name = 'fvTenant'
-    _tree_parent = None
 
     def __init__(self, **kwargs):
         super(Tenant, self).__init__({'monitored': False}, **kwargs)
@@ -524,7 +527,7 @@ class Endpoint(ResourceBase):
                                        **kwargs)
 
 
-class VMMDomain(ResourceBase):
+class VMMDomain(RootResource):
     """Resource representing a VMM domain.
 
     Identity attributes: VMM type (eg. Openstack) and name
@@ -538,15 +541,16 @@ class VMMDomain(ResourceBase):
     # the stub connecting what is explicitly created through the Infra and
     # what is managed by AIM, therefore we keep the stored information to
     # the very minimum
-    other_attributes = t.other()
+    other_attributes = t.other(
+        ('monitored', t.bool)
+    )
     _aci_mo_name = 'vmmDomP'
-    _tree_parent = None
 
     def __init__(self, **kwargs):
-        super(VMMDomain, self).__init__({}, **kwargs)
+        super(VMMDomain, self).__init__({'monitored': False}, **kwargs)
 
 
-class PhysicalDomain(ResourceBase):
+class PhysicalDomain(RootResource):
     """Resource representing a Physical domain.
 
     Identity attributes: name
@@ -558,12 +562,14 @@ class PhysicalDomain(ResourceBase):
     # just the stub connecting what is explicitly created through the Infra and
     # what is managed by AIM, therefore we keep the stored information to
     # the very minimum
-    other_attributes = t.other()
+    other_attributes = t.other(
+        ('monitored', t.bool)
+    )
+
     _aci_mo_name = 'physDomP'
-    _tree_parent = None
 
     def __init__(self, **kwargs):
-        super(PhysicalDomain, self).__init__({}, **kwargs)
+        super(PhysicalDomain, self).__init__({'monitored': False}, **kwargs)
 
 
 class L3Outside(AciResourceBase):
@@ -737,14 +743,15 @@ class Configuration(ResourceBase):
         super(Configuration, self).__init__({}, **kwargs)
 
 
-class Infra(AciResourceBase):
+class Infra(RootResource):
     """Resource representing Infra in ACI. """
 
-    identity_attributes = []
-    other_attributes = ['monitored']
+    identity_attributes = t.identity()
+    other_attributes = t.other(
+        ('monitored', t.bool)
+    )
 
     _aci_mo_name = 'infraInfra'
-    _tree_parent = None
 
     def __init__(self, **kwargs):
         super(Infra, self).__init__(

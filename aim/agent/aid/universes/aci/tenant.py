@@ -37,6 +37,8 @@ from aim import exceptions
 LOG = logging.getLogger(__name__)
 TENANT_KEY = 'fvTenant'
 INFRA_KEY = 'infraInfra'
+VMM_KEY = 'vmmDomP'
+PHYSDOM_KEY = 'physDomP'
 ROOT_KEYS = [TENANT_KEY, INFRA_KEY]
 FAULT_KEY = 'faultInst'
 TAG_KEY = 'tagInst'

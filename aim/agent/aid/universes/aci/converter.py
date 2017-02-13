@@ -571,6 +571,12 @@ resource_map = {
     'infraInfra': [{
         'resource': resource.Infra,
     }],
+    'vmmDomP': [{
+        'resource': resource.VMMDomain,
+    }],
+    'physDomP': [{
+        'resource': resource.PhysicalDomain,
+    }]
 }
 
 

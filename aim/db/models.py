@@ -158,19 +158,24 @@ class EndpointGroupContract(model_base.Base):
     provides = sa.Column(sa.Boolean, primary_key=True)
 
 
-class VMMDomain(model_base.Base, model_base.AttributeMixin):
+class VMMDomain(model_base.Base, model_base.AttributeMixin,
+                model_base.HasAimId,
+                model_base.IsMonitored, model_base.HasName):
     """DB model for VMM Domain."""
     __tablename__ = 'aim_vmm_domains'
+    __table_args__ = (uniq_column(__tablename__, 'type', 'name') +
+                      to_tuple(model_base.Base.__table_args__))
 
-    type = sa.Column(sa.String(64), primary_key=True)
-    name = model_base.name_column(primary_key=True)
+    type = sa.Column(sa.String(64))
 
 
-class PhysicalDomain(model_base.Base, model_base.AttributeMixin):
+class PhysicalDomain(model_base.Base, model_base.AttributeMixin,
+                     model_base.HasAimId,
+                     model_base.IsMonitored, model_base.HasName):
     """DB model for VMM Domain."""
     __tablename__ = 'aim_physical_domains'
-
-    name = model_base.name_column(primary_key=True)
+    __table_args__ = (uniq_column(__tablename__, 'name') +
+                      to_tuple(model_base.Base.__table_args__))
 
 
 class EndpointGroupVMMDomain(model_base.Base):

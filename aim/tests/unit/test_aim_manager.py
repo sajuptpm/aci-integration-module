@@ -727,6 +727,7 @@ class TestVMMDomainMixin(object):
     test_update_attributes = {}
     test_default_values = {}
     res_command = 'vmm-domain'
+    test_dn = "uni/vmmp-OpenStack/dom-openstack"
 
 
 class TestPhysicalDomainMixin(object):
@@ -737,6 +738,7 @@ class TestPhysicalDomainMixin(object):
     test_update_attributes = {}
     test_default_values = {}
     res_command = 'physical-domain'
+    test_dn = "uni/phys-phys"
 
 
 class TestL3OutsideMixin(object):

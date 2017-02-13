@@ -450,12 +450,48 @@ class TestAimDBBase(BaseTestCase):
 
     @classmethod
     def _get_example_aci_infra(cls, **kwargs):
-        example_nodep = {
+        example_infra = {
             "infraInfra": {
                 "attributes": {
                     "dn": "uni/infra",
                 }
             }
         }
-        example_nodep['infraInfra']['attributes'].update(kwargs)
-        return example_nodep
+        example_infra['infraInfra']['attributes'].update(kwargs)
+        return example_infra
+
+    @classmethod
+    def _get_example_aim_vmm(cls, **kwargs):
+        example = resource.VMMDomain(type='Openstack', name='test')
+        example.__dict__.update(kwargs)
+        return example
+
+    @classmethod
+    def _get_example_aci_vmm(cls, **kwargs):
+        example_vmm = {
+            "vmmDomP": {
+                "attributes": {
+                    "dn": "uni/vmmp-Openstack/dom-test",
+                }
+            }
+        }
+        example_vmm['vmmDomP']['attributes'].update(kwargs)
+        return example_vmm
+
+    @classmethod
+    def _get_example_aim_physdom(cls, **kwargs):
+        example = resource.PhysicalDomain(name='test')
+        example.__dict__.update(kwargs)
+        return example
+
+    @classmethod
+    def _get_example_aci_physdom(cls, **kwargs):
+        example_phys = {
+            "physDomP": {
+                "attributes": {
+                    "dn": "uni/phys-test",
+                }
+            }
+        }
+        example_phys['physDomP']['attributes'].update(kwargs)
+        return example_phys

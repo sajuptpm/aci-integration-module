@@ -59,6 +59,12 @@ class AID(object):
         # DB session which can result in conflicts.
         # TODO(amitbose) Fix ConfigManager to not use cached AimContext
         self.conf_manager = aim_cfg.ConfigManager(aim_ctx, self.host)
+        self.k8s_watcher = None
+        self.single_aid = False
+        if conf.aim.aim_store == 'k8s':
+            self.single_aid = True
+            self.k8s_watcher = k8s_watcher.K8sWatcher()
+            self.k8s_watcher.run()
 
         # Define multiverse pairs, First position is desired state
         self.multiverse = [
@@ -106,12 +112,6 @@ class AID(object):
         self.events = event_handler.EventHandler().initialize(
             self.conf_manager)
         self.max_down_time = 4 * self.report_interval
-        self.k8s_watcher = None
-        self.single_aid = False
-        if conf.aim.aim_store == 'k8s':
-            self.single_aid = True
-            self.k8s_watcher = k8s_watcher.K8sWatcher()
-            self.k8s_watcher.run()
 
     def daemon_loop(self):
         aim_ctx = context.AimContext(store=api.get_store())

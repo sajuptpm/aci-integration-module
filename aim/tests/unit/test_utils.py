@@ -82,3 +82,12 @@ class TestUtils(base.TestAimDBBase):
         self.assertEqual(
             'vvxojw5rwlmq6abg3trx6nchbffez4lxfhalgidxlyhtlh3r4jwq',
             internal_utils.sanitize_name('test', 'a -', '-', '_'))
+
+    @internal_utils.rlock('test')
+    def locked_func(self):
+        pass
+
+    def test_cover_lock(self):
+        self.assertTrue('test' not in internal_utils.all_locks)
+        self.locked_func()
+        self.assertTrue('test' in internal_utils.all_locks)

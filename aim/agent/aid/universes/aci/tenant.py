@@ -156,7 +156,7 @@ class AciTenantManager(utils.AIMThread):
             'aci_tenant_polling_yield', 'aim')
         self.to_aim_converter = converter.AciToAimModelConverter()
         self.to_aci_converter = converter.AimToAciModelConverter()
-        self.object_backlog = Queue.Queue()
+        self._reset_object_backlock()
         self.tree_builder = tree_manager.HashTreeBuilder(None)
         self.tag_name = aim_system_id or self.apic_config.get_option(
             'aim_system_id', 'aim')
@@ -174,6 +174,10 @@ class AciTenantManager(utils.AIMThread):
         self.recovery_retries = None
         self.max_retries = 5
         self.error_handler = error.APICAPIErrorHandler()
+        # Initialize tenant tree
+
+    def _reset_object_backlock(self):
+        self.object_backlog = Queue.Queue()
 
     def is_dead(self):
         # Wrapping the greenlet property for easier testing
@@ -224,19 +228,11 @@ class AciTenantManager(utils.AIMThread):
             # tenant subscription is redone upon exception
             self._subscribe_tenant()
             LOG.debug("Starting event loop for tenant %s" % self.tenant_name)
-            count = 3
             last_time = 0
             epsilon = 0.5
             while not self._stop:
                 start = time.time()
                 self._event_loop()
-                if count == 0:
-                    LOG.debug("Setting tenant %s to warm state" %
-                              self.tenant_name)
-                    self._warm = True
-                    count -= 1
-                elif count > 0:
-                    count -= 1
                 curr_time = time.time() - start
                 if abs(curr_time - last_time) > epsilon:
                     # Only log significant differences
@@ -268,8 +264,6 @@ class AciTenantManager(utils.AIMThread):
         # iteration.
         self._push_aim_resources()
         if self.ws_context.has_event(self.tenant.urls):
-            LOG.debug("Event for tenant %s in warm state %s" %
-                      (self.tenant_name, self._warm))
             # Continuously check for events
             events = self.ws_context.get_event_data(self.tenant.urls)
             for event in events:
@@ -292,7 +286,6 @@ class AciTenantManager(utils.AIMThread):
             # Manage Tags
             events = self._filter_ownership(events)
             self._event_to_tree(events)
-        # yield for other threads
         time.sleep(max(0, self.polling_yield - (time.time() - start_time)))
 
     def push_aim_resources(self, resources):
@@ -406,10 +399,14 @@ class AciTenantManager(utils.AIMThread):
 
     def _unsubscribe_tenant(self):
         LOG.info("Unsubscribing tenant websocket %s" % self.tenant_name)
+        self._warm = False
         self.ws_context.unsubscribe(self.tenant.urls)
+        self._reset_object_backlock()
 
     def _subscribe_tenant(self):
         self.ws_context.subscribe(self.tenant.urls)
+        self._event_loop()
+        self._warm = True
 
     def _event_to_tree(self, events):
         """Parse the event and push it into the tree

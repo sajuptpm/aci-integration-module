@@ -999,6 +999,16 @@ class TestDeviceClusterMixin(object):
     test_dn = 'uni/tn-tenant1/lDevVip-cl1'
     res_command = 'device-cluster'
 
+    def test_fault_root(self):
+        f = aim_status.AciFault(**{
+            'severity': 'minor', 'fault_code': 'F1690',
+            'cause': 'configuration-failed',
+            'external_identifier': 'uni/tn-common/lDevVip-service__kubernetes/'
+                                   'vnsConfIssue-missing-cdev/fault-F1690',
+            'description': 'Configuration is invalid due to No device '
+                           'found in cluster.'})
+        self.assertEqual('tn-common', f.root)
+
 
 class TestDeviceClusterInterfaceMixin(object):
     resource_class = aim_service_graph.DeviceClusterInterface
@@ -1490,9 +1500,9 @@ class TestVmmInjectedHostMixin(object):
                                 'domain_name': 'kubernetes',
                                 'controller_name': 'kube-cluster',
                                 'host_name': 'host1.local.lab',
-                                'os': 'Ubuntu',
+                                'os': 'Ubunt',
                                 'kernel_version': '4.16.8'}
-    test_search_attributes = {'os': 'Ubuntu'}
+    test_search_attributes = {'os': 'Ubunt'}
     test_update_attributes = {'host_name': 'host2.local.lab'}
     test_default_values = {}
     test_dn = ('uni/vmmp-Kubernetes/dom-kubernetes/ctrlr-kube-cluster/injcont/'

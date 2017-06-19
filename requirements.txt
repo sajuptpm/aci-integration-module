@@ -6,7 +6,8 @@
 
 alembic
 -e git+https://github.com/noironetworks/acitoolkit.git@noiro-lite#egg=acitoolkit
--e git+https://github.com/noironetworks/apicapi.git@master#egg=apicapi
+# REVISIT: revert to master branch
+-e git+https://github.com/noironetworks/apicapi.git@sumit/ocata#egg=apicapi
 Click
 jsonschema  # MIT
 kubernetes

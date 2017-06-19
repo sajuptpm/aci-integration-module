@@ -3,7 +3,8 @@
 # process, which may cause wedges in the gate later.
 
 -e git+https://github.com/noironetworks/acitoolkit.git@noiro-lite#egg=acitoolkit
--e git+https://github.com/noironetworks/apicapi.git@master#egg=apicapi
+# REVISIT
+-e git+https://github.com/noironetworks/apicapi.git@sumit/ocata#egg=apicapi
 
 hacking<0.11,>=0.10.0
 
